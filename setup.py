@@ -30,7 +30,7 @@ INSTALL_REQUIRES = [
     "fastapi",
     "pydantic",
     "python-dateutil",
-    "redis",
+    "aioredis",
 ]
 DEV_REQUIRES = [
     "black",

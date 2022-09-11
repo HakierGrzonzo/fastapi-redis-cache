@@ -44,7 +44,7 @@ def cache(*, expire: Union[int, timedelta] = ONE_YEAR_IN_SECONDS):
                 # if the redis client is not connected or request is not cacheable, no caching behavior is performed.
                 return await get_api_response_async(func, *args, **kwargs)
             key = redis_cache.get_cache_key(func, *args, **kwargs)
-            ttl, in_cache = redis_cache.check_cache(key)
+            ttl, in_cache = await redis_cache.check_cache(key)
             if in_cache:
                 redis_cache.set_response_headers(response, True, deserialize_json(in_cache), ttl)
                 if redis_cache.requested_resource_not_modified(request, in_cache):
@@ -66,7 +66,7 @@ def cache(*, expire: Union[int, timedelta] = ONE_YEAR_IN_SECONDS):
                 )
             response_data = await get_api_response_async(func, *args, **kwargs)
             ttl = calculate_ttl(expire)
-            cached = redis_cache.add_to_cache(key, response_data, ttl)
+            cached = await redis_cache.add_to_cache(key, response_data, ttl)
             if cached:
                 redis_cache.set_response_headers(response, cache_hit=False, response_data=response_data, ttl=ttl)
                 return (

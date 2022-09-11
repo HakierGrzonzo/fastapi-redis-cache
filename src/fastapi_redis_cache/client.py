@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import Callable, Dict, List, Optional, Tuple, Type, Union
 
 from fastapi import Request, Response
-from redis import client
+from aioredis import client
 
 from fastapi_redis_cache.enums import RedisEvent, RedisStatus
 from fastapi_redis_cache.key_gen import get_cache_key
@@ -94,9 +94,9 @@ class FastApiRedisCache(metaclass=MetaSingleton):
     def get_cache_key(self, func: Callable, *args: List, **kwargs: Dict) -> str:
         return get_cache_key(self.prefix, self.ignore_arg_types, func, *args, **kwargs)
 
-    def check_cache(self, key: str) -> Tuple[int, str]:
+    async def check_cache(self, key: str) -> Tuple[int, str]:
         pipe = self.redis.pipeline()
-        ttl, in_cache = pipe.ttl(key).get(key).execute()
+        ttl, in_cache = await pipe.ttl(key).get(key).execute()
         if in_cache:
             self.log(RedisEvent.KEY_FOUND_IN_CACHE, key=key)
         return (ttl, in_cache)
@@ -109,7 +109,7 @@ class FastApiRedisCache(metaclass=MetaSingleton):
             return True
         return self.get_etag(cached_data) in check_etags
 
-    def add_to_cache(self, key: str, value: Dict, expire: int) -> bool:
+    async def add_to_cache(self, key: str, value: Dict, expire: int) -> bool:
         response_data = None
         try:
             response_data = serialize_json(value)
@@ -117,7 +117,7 @@ class FastApiRedisCache(metaclass=MetaSingleton):
             message = f"Object of type {type(value)} is not JSON-serializable"
             self.log(RedisEvent.FAILED_TO_CACHE_KEY, msg=message, key=key)
             return False
-        cached = self.redis.set(name=key, value=response_data, ex=expire)
+        cached = await self.redis.set(name=key, value=response_data, ex=expire)
         if cached:
             self.log(RedisEvent.KEY_ADDED_TO_CACHE, key=key)
         else:  # pragma: no cover
